@@ -1,40 +1,107 @@
-import { useEffect, useState } from "react";
-import type { Schema } from "../amplify/data/resource";
-import { generateClient } from "aws-amplify/data";
+import React, { useState, ChangeEvent } from 'react';
+import {
+  Card,
+  CardHeader,
+  CardTitle,
+  CardDescription,
+  CardContent,
+} from "@/components/ui/card"
+import { Input } from "@/components/ui/input"
+import { Button } from "@/components/ui/button"
+import { Label } from "@/components/ui/label"
+import { Select, SelectItem } from "@/components/ui/select"
+import { cn } from "@/lib/utils"
 
-const client = generateClient<Schema>();
+// Placeholder for Amplify interactions
+const uploadImage = async (file: File) => {
+  // Replace with actual Amplify upload logic
+  return new Promise((resolve) => {
+    setTimeout(() => {
+      resolve("https://via.placeholder.com/300"); // Placeholder URL
+    }, 1000);
+  });
+};
 
-function App() {
-  const [todos, setTodos] = useState<Array<Schema["Todo"]["type"]>>([]);
+const applyFilter = async (imageUrl: string, filter: string) => {
+  // Replace with actual filter application and upload logic
+  return new Promise((resolve) => {
+    setTimeout(() => {
+      resolve(`https://via.placeholder.com/300?text=${filter}`); // Placeholder URL
+    }, 1000);
+  });
+};
 
-  useEffect(() => {
-    client.models.Todo.observeQuery().subscribe({
-      next: (data) => setTodos([...data.items]),
-    });
-  }, []);
+const filters = [
+  "grayscale",
+  "sepia",
+  "blur",
+  "invert"
+]
 
-  function createTodo() {
-    client.models.Todo.create({ content: window.prompt("Todo content") });
+
+const ImageProcessingApp = () => {
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [uploadedImageUrl, setUploadedImageUrl] = useState<string | null>(null);
+  const [filteredImageUrl, setFilteredImageUrl] = useState<string | null>(null);
+  const [selectedFilter, setSelectedFilter] = useState<string | null>(null);
+
+  const handleFileChange = (event: ChangeEvent<HTMLInputElement>) => {
+    setSelectedFile(event.target.files?.[0] || null);
+  };
+
+  const handleUpload = async () => {
+    if (selectedFile) {
+      const url = await uploadImage(selectedFile);
+      setUploadedImageUrl(url as string);
+    }
+  };
+
+  const handleApplyFilter = async () => {
+    if (uploadedImageUrl && selectedFilter) {
+      const url = await applyFilter(uploadedImageUrl, selectedFilter);
+      setFilteredImageUrl(url as string);
+    }
   }
 
   return (
-    <main>
-      <h1>My todos</h1>
-      <button onClick={createTodo}>+ new</button>
-      <ul>
-        {todos.map((todo) => (
-          <li key={todo.id}>{todo.content}</li>
-        ))}
-      </ul>
-      <div>
-        🥳 App successfully hosted. Try creating a new todo.
-        <br />
-        <a href="https://docs.amplify.aws/react/start/quickstart/#make-frontend-updates">
-          Review next step of this tutorial.
-        </a>
-      </div>
-    </main>
-  );
-}
+    <div className="container mx-auto p-4">
+      <Card>
+        <CardHeader>
+          <CardTitle>Image Processing App</CardTitle>
+          <CardDescription>Upload and apply filters to your images.</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
 
-export default App;
+          <Input type="file" onChange={handleFileChange} />
+          <Button onClick={handleUpload} disabled={!selectedFile}>Upload</Button>
+
+          {uploadedImageUrl && (
+            <div>
+              <Label>Uploaded Image</Label>
+              <img src={uploadedImageUrl} alt="Uploaded" className="mt-2 w-full object-contain max-h-96" />
+            </div>
+          )}
+
+          <Select value={selectedFilter} onValueChange={setSelectedFilter}>
+            <SelectItem value="">Select a filter</SelectItem>
+            {filters.map(filter => (
+              <SelectItem key={filter} value={filter}>{filter}</SelectItem>
+            ))}
+          </Select>
+
+          <Button onClick={handleApplyFilter} disabled={!uploadedImageUrl || !selectedFilter}>Apply Filter</Button>
+
+          {filteredImageUrl && (
+            <div>
+              <Label>Filtered Image</Label>
+              <img src={filteredImageUrl} alt="Filtered" className="mt-2 w-full object-contain max-h-96" />
+            </div>
+          )}
+
+        </CardContent>
+      </Card>
+    </div>
+  );
+};
+
+export default ImageProcessingApp;
