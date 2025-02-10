@@ -113,6 +113,7 @@ const App = () => {
     const imageKey = await uploadImage(file);
     setUploadInProgress(false);
     setOriginalImageKey(imageKey);
+    await fetchHistory();
   };
 
   const handleApplyFilters = async () => {
@@ -127,6 +128,7 @@ const App = () => {
       return;
     }
     setProcessedImageKey(returnedImageKey);
+    await fetchHistory();
   };
 
   const handleFilterCheckboxChange = (filter: string) => (checked: boolean) => {
