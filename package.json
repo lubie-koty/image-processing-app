@@ -11,20 +11,26 @@
   },
   "dependencies": {
     "@aws-amplify/ui-react": "^6.5.5",
+    "@aws-amplify/ui-react-storage": "^3.7.2",
+    "@aws-sdk/client-dynamodb": "^3.744.0",
+    "@aws-sdk/client-s3": "^3.744.0",
+    "@aws-sdk/lib-dynamodb": "^3.744.0",
     "@radix-ui/react-checkbox": "^1.1.4",
     "@radix-ui/react-label": "^2.1.2",
     "@radix-ui/react-scroll-area": "^1.2.3",
     "@radix-ui/react-select": "^2.1.6",
     "@radix-ui/react-separator": "^1.1.2",
     "@radix-ui/react-slot": "^1.1.2",
-    "aws-amplify": "^6.6.6",
+    "aws-amplify": "^6.12.3",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
+    "jimp": "^1.6.0",
     "lucide-react": "^0.475.0",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
     "tailwind-merge": "^3.0.1",
-    "tailwindcss-animate": "^1.0.7"
+    "tailwindcss-animate": "^1.0.7",
+    "uuid": "^11.0.5"
   },
   "devDependencies": {
     "@aws-amplify/backend": "^1.5.0",
