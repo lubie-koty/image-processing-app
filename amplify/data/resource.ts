@@ -18,9 +18,10 @@ const schema = a.schema({
     .arguments({
       originalImageS3Key: a.string().required(),
       filters: a.string().required().array().required(),
-    }).returns(a.ref("ImageProcessorResponse"))
-    .handler(a.handler.function(imageProcessor))
-    .authorization(allow => [allow.authenticated()]),
+    })
+    .returns(a.ref("ImageProcessorResponse"))
+    .authorization(allow => [allow.authenticated()])
+    .handler(a.handler.function(imageProcessor)),
 }).authorization(allow => [
   allow.resource(imageProcessor),
 ]);

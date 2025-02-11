@@ -1,17 +1,13 @@
 import { S3Client, PutObjectCommand, GetObjectCommand } from '@aws-sdk/client-s3';
-import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
-import { UpdateCommand, DynamoDBDocumentClient } from "@aws-sdk/lib-dynamodb";
+import { getAmplifyDataClientConfig } from "@aws-amplify/backend/function/runtime"
+import { Amplify } from 'aws-amplify';
+import { generateClient } from 'aws-amplify/data';
+import { env } from '$amplify/env/image-processor';
 
 import { v4 as uuidv4 } from 'uuid';
 import { Jimp, JimpInstance } from 'jimp';
 
 import type { Schema } from '../../data/resource'
-
-const s3Client = new S3Client();
-const S3_BUCKET_NAME = "imagesBucket";
-const dynamoDbClient = new DynamoDBClient({});
-const documentClient = DynamoDBDocumentClient.from(dynamoDbClient);
-const DYNAMODB_TABLE_NAME = "ImageMetadata";
 
 const applyBlur = (image: JimpInstance) => {
   image.blur(5);
@@ -44,12 +40,19 @@ const filtersByName: Record<string, Function> = {
   'mirror': applyMirror,
 }
 
+const { resourceConfig, libraryOptions } = await getAmplifyDataClientConfig(env as any);
+
+Amplify.configure(resourceConfig, libraryOptions);
+
+const s3Client = new S3Client();
+const dataClient = generateClient<Schema>();
+
 export const handler: Schema["ImageProcessor"]["functionHandler"] = async (event, _) => {
   const { originalImageS3Key, filters } = event.arguments;
 
   // Download original image from S3
   const getOriginalCommand = new GetObjectCommand({
-    Bucket: "imagesBucket",
+    Bucket: env.IMAGES_BUCKET_BUCKET_NAME,
     Key: originalImageS3Key,
   })
   const originalImage = (await s3Client.send(getOriginalCommand));
@@ -61,8 +64,8 @@ export const handler: Schema["ImageProcessor"]["functionHandler"] = async (event
   }
 
   // Apply Filters
-  const processedImage = await Jimp.read(
-    await originalImage.Body.transformToByteArray()
+  const processedImage = await Jimp.fromBuffer(
+    (await originalImage.Body.transformToByteArray()).buffer
   )
 
   for (const filterName of filters) {
@@ -78,7 +81,7 @@ export const handler: Schema["ImageProcessor"]["functionHandler"] = async (event
 
   // Upload processed image to S3
   const putProcessedCommand = new PutObjectCommand({
-    Bucket: S3_BUCKET_NAME,
+    Bucket: env.IMAGES_BUCKET_BUCKET_NAME,
     Key: processedImageKey,
     ContentType: originalImage.ContentType,
     Body: processedImageBody,
@@ -93,20 +96,25 @@ export const handler: Schema["ImageProcessor"]["functionHandler"] = async (event
   }
 
   // Store metadata in DynamoDB
-  const updateMetadataCommand = new UpdateCommand({
-    TableName: DYNAMODB_TABLE_NAME,
-    Key: {
-      originalImageS3Key: originalImageS3Key,
-    },
-    UpdateExpression: "set processedImageS3Key = :processedKey",
-    ExpressionAttributeValues: {
-      ":processedKey": processedImageKey,
+  const { data: existingImageMetadata, errors: listErrors } = await dataClient.models.ImageMetadata.list({
+    filter: {
+      originalImageS3Key: {
+        eq: originalImageS3Key,
+      }
     }
   })
-  try {
-    await documentClient.send(updateMetadataCommand);
-  } catch (error) {
-    console.error("Error uploading image metadata", error)
+  if (existingImageMetadata.length !== 1 || listErrors) {
+    console.error("An error occured while querying existing image metadata", listErrors)
+    return {
+      success: false,
+    }
+  }
+  const { data: updatedMetadata, errors: updateErrors } = await dataClient.models.ImageMetadata.update({
+    id: existingImageMetadata[0].id,
+    processedImageS3Key: processedImageKey,
+  })
+  if (!updatedMetadata?.processedImageS3Key || updateErrors) {
+    console.error("Error updating image metadata", updateErrors)
     return {
       success: false,
     }

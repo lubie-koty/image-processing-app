@@ -5,6 +5,7 @@ import { getCurrentUser } from 'aws-amplify/auth';
 import { generateClient } from 'aws-amplify/data'
 import { uploadData } from 'aws-amplify/storage';
 import { v4 as uuidv4 } from 'uuid';
+import { LoaderCircle } from 'lucide-react';
 
 import { type Schema } from 'amplify/data/resource';
 import {
@@ -35,7 +36,7 @@ const App = () => {
 
   const [file, setFile] = useState<File | null>(null);
   const [uploadInProgress, setUploadInProgress] = useState<boolean>(false);
-
+  const [imageProcessingInProgress, setImageProcessingInProgress] = useState<boolean>(false);
   const [originalImageKey, setOriginalImageKey] = useState<string | null>(null);
   const [processedImageKey, setProcessedImageKey] = useState<string | null>(null);
   const [selectedFilters, setSelectedFilters] = useState<string[]>([]);
@@ -46,14 +47,15 @@ const App = () => {
   });
 
   const applyFilter = async (imageKey: string) => {
-    const response = await dataClient.queries.ImageProcessor({
+    const { data, errors } = await dataClient.queries.ImageProcessor({
       originalImageS3Key: imageKey,
       filters: selectedFilters,
     })
-    if (response.errors || !response.data?.success) {
-      throw new Error(response.errors?.toString());
+    console.log(errors)
+    if (errors || !data?.success) {
+      throw new Error(errors?.map(error => error.message).join('\n'));
     } else {
-      return response.data.processedImageS3Key!;
+      return data.processedImageS3Key!;
     }
   };
 
@@ -113,6 +115,7 @@ const App = () => {
     const imageKey = await uploadImage(file);
     setUploadInProgress(false);
     setOriginalImageKey(imageKey);
+    setProcessedImageKey(null);
     await fetchHistory();
   };
 
@@ -120,13 +123,19 @@ const App = () => {
     if (!selectedFilters.length || !originalImageKey) {
       return;
     }
+    const previousKey = processedImageKey;
+    setImageProcessingInProgress(true);
+    setProcessedImageKey(null);
     let returnedImageKey;
     try {
       returnedImageKey = await applyFilter(originalImageKey);
     } catch (error) {
       console.error(error);
+      setImageProcessingInProgress(false);
+      setProcessedImageKey(previousKey);
       return;
     }
+    setImageProcessingInProgress(false);
     setProcessedImageKey(returnedImageKey);
     await fetchHistory();
   };
@@ -209,17 +218,22 @@ const App = () => {
                   </div>
                 </CardContent>
               </div>
-              <div className="p-4 overflow-y-auto">
+              <div className="w-3/4 p-4 overflow-y-auto">
                 <CardHeader>
                   <CardTitle>Processed Image</CardTitle>
                 </CardHeader>
-                <CardContent>
+                <CardContent className="relative w-full h-[50vh]">
+                  {imageProcessingInProgress && (
+                    <div className="absolute inset-0 flex items-center justify-center bg-background/50">
+                      <LoaderCircle className="h-8 w-8 animate-spin text-primary" />
+                    </div>
+                  )}
                   {processedImageKey && (
-                    <div>
-                      <img
-                        src={processedImageKey}
-                        alt="Processed"
-                        className="w-full object-contain max-h-[calc(75vh-350px)]"
+                    <div className="absolute inset-0 overflow-auto">
+                      <StorageImage
+                        path={processedImageKey}
+                        alt="cat2"
+                        className="w-full h-auto object-contain"
                       />
                     </div>
                   )}
